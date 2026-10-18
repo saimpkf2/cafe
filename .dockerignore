@@ -1,0 +1,12 @@
+.git
+.venv
+env
+venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+*.sqlite3
+LOCAL_ADMIN.txt
+*.log

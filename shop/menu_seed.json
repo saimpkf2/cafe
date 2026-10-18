@@ -1,0 +1,338 @@
+[
+  {
+    "key": "coffee",
+    "name": "Coffee",
+    "items": [
+      {
+        "name": "Espresso",
+        "price": "14.75",
+        "popular": true,
+        "description": "Strong & bold shot of pure coffee"
+      },
+      {
+        "name": "Salted Caramel Latte",
+        "price": "26.25",
+        "popular": true,
+        "description": "Smooth latte with salted caramel"
+      },
+      {
+        "name": "Latte",
+        "price": "20.00",
+        "popular": false,
+        "description": "Creamy steamed milk with espresso"
+      },
+      {
+        "name": "Americano / Long Black",
+        "price": "15.75",
+        "popular": false,
+        "description": "Espresso with hot water"
+      },
+      {
+        "name": "Piccolo",
+        "price": "17.85",
+        "popular": false,
+        "description": "Small but mighty milk coffee"
+      },
+      {
+        "name": "Cortado",
+        "price": "17.85",
+        "popular": false,
+        "description": "Equal parts espresso & steamed milk"
+      },
+      {
+        "name": "Flat White",
+        "price": "20.00",
+        "popular": false,
+        "description": "Smooth micro-foam coffee"
+      },
+      {
+        "name": "Cappuccino",
+        "price": "20.00",
+        "popular": false,
+        "description": "Perfect balance of coffee & foam"
+      },
+      {
+        "name": "Spanish Cortado",
+        "price": "23.10",
+        "popular": false,
+        "description": "Sweetened condensed milk cortado"
+      },
+      {
+        "name": "Spanish Latte",
+        "price": "25.20",
+        "popular": false,
+        "description": "Sweet & creamy Spanish style"
+      },
+      {
+        "name": "Matcha Latte",
+        "price": "26.26",
+        "popular": true,
+        "description": "Premium Japanese matcha"
+      },
+      {
+        "name": "Cloud Matcha latte",
+        "price": "28.35",
+        "popular": false,
+        "description": "Fluffy matcha with cloud foam"
+      },
+      {
+        "name": "Coffee of the Day",
+        "price": "14.75",
+        "popular": false,
+        "description": "Freshly brewed daily selection"
+      },
+      {
+        "name": "Desires Signature",
+        "price": "23.10",
+        "popular": true,
+        "description": "Our secret house special blend"
+      }
+    ]
+  },
+  {
+    "key": "nonCoffee",
+    "name": "Non-Coffee",
+    "items": [
+      {
+        "name": "Desires Hisbiscus",
+        "price": "18.90",
+        "popular": true,
+        "description": "Refreshing hibiscus flower drink"
+      },
+      {
+        "name": "Strawberry Kiwi",
+        "price": "23.10",
+        "popular": false,
+        "description": "Sweet & tangy fruit fusion"
+      },
+      {
+        "name": "Passion Fruit Mojito",
+        "price": "29.40",
+        "popular": true,
+        "description": "Tropical passion fruit delight"
+      },
+      {
+        "name": "Blue Lagon Mojito",
+        "price": "29.40",
+        "popular": false,
+        "description": "Citrusy blue refreshment"
+      },
+      {
+        "name": "Strawberry Mojito",
+        "price": "29.40",
+        "popular": false,
+        "description": "Classic strawberry mojito"
+      }
+    ]
+  },
+  {
+    "key": "smoothies",
+    "name": "Smoothies",
+    "items": [
+      {
+        "name": "Blissfully Blue",
+        "price": "25.20",
+        "popular": false,
+        "description": "Refreshing blue blend smoothie"
+      },
+      {
+        "name": "Pink Dragon",
+        "price": "25.20",
+        "popular": true,
+        "description": "Dragon fruit pink smoothie"
+      },
+      {
+        "name": "Energy Booster",
+        "price": "25.20",
+        "popular": false,
+        "description": "Energizing power smoothie"
+      },
+      {
+        "name": "Rasberry Love",
+        "price": "25.20",
+        "popular": false,
+        "description": "Raspberry flavoured smoothie"
+      },
+      {
+        "name": "Beat The Heat",
+        "price": "25.20",
+        "popular": false,
+        "description": "Cool & refreshing summer blend"
+      },
+      {
+        "name": "Acai Smoothie",
+        "price": "27.50",
+        "popular": true,
+        "description": "Antioxidant rich acai blend"
+      }
+    ]
+  },
+  {
+    "key": "frappe",
+    "name": "Frappe",
+    "items": [
+      {
+        "name": "Cookies & Cream",
+        "price": "23.10",
+        "popular": false,
+        "description": "Oreo cookie frozen frappe"
+      },
+      {
+        "name": "Mango Frappe",
+        "price": "23.10",
+        "popular": false,
+        "description": "Tropical mango frozen blend"
+      },
+      {
+        "name": "Desires Frappe",
+        "price": "25.20",
+        "popular": true,
+        "description": "Signature house frappe"
+      },
+      {
+        "name": "Protein Shake",
+        "price": "29.40",
+        "popular": false,
+        "description": "Post-workout protein boost"
+      }
+    ]
+  },
+  {
+    "key": "iceCream",
+    "name": "Ice Cream",
+    "items": [
+      {
+        "name": "Halwa Omania",
+        "price": "17.85",
+        "popular": true,
+        "description": "Traditional Omani halwa flavour"
+      },
+      {
+        "name": "Vanila",
+        "price": "15.75",
+        "popular": false,
+        "description": "Classic vanilla bean"
+      },
+      {
+        "name": "Salted Caramel",
+        "price": "15.75",
+        "popular": true,
+        "description": "Sweet & salty caramel"
+      },
+      {
+        "name": "Roasted Pistacio",
+        "price": "17.85",
+        "popular": false,
+        "description": "Toasted pistachio flavor"
+      },
+      {
+        "name": "Watermelon Sorbet",
+        "price": "15.75",
+        "popular": false,
+        "description": "Refreshing dairy-free sorbet"
+      },
+      {
+        "name": "Tripple Choclate",
+        "price": "15.75",
+        "popular": false,
+        "description": "Chocolate lovers dream"
+      },
+      {
+        "name": "Strawbery Sorbet",
+        "price": "15.75",
+        "popular": false,
+        "description": "Fresh strawberry sorbet"
+      },
+      {
+        "name": "Arabic Coffee",
+        "price": "15.75",
+        "popular": false,
+        "description": "Traditional Arabic coffee flavor"
+      }
+    ]
+  },
+  {
+    "key": "specialtyTea",
+    "name": "Specialty Tea",
+    "items": [
+      {
+        "name": "Arabian Night",
+        "price": "18.90",
+        "popular": true,
+        "description": "Exotic Arabian blend"
+      },
+      {
+        "name": "English Breakfast Tea",
+        "price": "18.90",
+        "popular": false,
+        "description": "Classic morning tea"
+      },
+      {
+        "name": "Rooi Boster",
+        "price": "18.90",
+        "popular": false,
+        "description": "Energizing herbal blend"
+      },
+      {
+        "name": "Jasmine",
+        "price": "18.90",
+        "popular": false,
+        "description": "Fragrant jasmine green tea"
+      },
+      {
+        "name": "Chamamile",
+        "price": "18.90",
+        "popular": false,
+        "description": "Calming bedtime tea"
+      }
+    ]
+  },
+  {
+    "key": "filterCoffee",
+    "name": "Filter Coffee",
+    "items": [
+      {
+        "name": "V60",
+        "price": "25.20",
+        "popular": true,
+        "description": "Pour-over V60 brewed coffee"
+      },
+      {
+        "name": "Cold Brew",
+        "price": "26.20",
+        "popular": true,
+        "description": "Slow-steeped cold brew coffee"
+      },
+      {
+        "name": "Chemix",
+        "price": "25.20",
+        "popular": false,
+        "description": "Chemex brewed filter coffee"
+      }
+    ]
+  },
+  {
+    "key": "milkAlt",
+    "name": "Milk Alternative",
+    "items": [
+      {
+        "name": "Almond Milk",
+        "price": "4.00",
+        "popular": true,
+        "description": "Nutty dairy alternative (Add to any drink)"
+      },
+      {
+        "name": "Oat Milk",
+        "price": "4.00",
+        "popular": true,
+        "description": "Creamy oat alternative (Add to any drink)"
+      },
+      {
+        "name": "Coconut Milk",
+        "price": "4.00",
+        "popular": false,
+        "description": "Tropical coconut alternative (Add to any drink)"
+      }
+    ]
+  }
+]

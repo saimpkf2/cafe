@@ -16,7 +16,13 @@ if os.getenv('RAILWAY_ENVIRONMENT_ID'):
     ALLOWED_HOSTS.append('healthcheck.railway.app')
     if os.getenv('RAILWAY_PUBLIC_DOMAIN'):
         ALLOWED_HOSTS.append(os.environ['RAILWAY_PUBLIC_DOMAIN'])
-CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if x.strip()]
+# The storefront is reverse-proxied through Vercel; its Origin differs from
+# the Railway upstream Host. Trust only these exact owned HTTPS origins.
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([
+    'https://desirescafe.com',
+    'https://www.desirescafe.com',
+    *[x.strip() for x in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if x.strip()],
+]))
 if DEBUG:
     CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS + [
         'http://localhost:5173', 'http://127.0.0.1:5173',

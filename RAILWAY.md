@@ -41,7 +41,7 @@ Frontend requests use relative `/api/` URLs and same-origin session cookies. Kee
 ```json
 {
   "rewrites": [
-    {"source": "/api/:path*", "destination": "https://YOUR-BACKEND.up.railway.app/api/:path*"},
+    {"source": "/api/:path(.*)", "destination": "https://YOUR-BACKEND.up.railway.app/api/:path*"},
     {"source": "/(.*)", "destination": "/index.html"}
   ]
 }

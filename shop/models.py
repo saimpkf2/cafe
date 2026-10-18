@@ -15,6 +15,7 @@ class Category(models.Model):
 
 
 class MenuItem(models.Model):
+    options = models.JSONField(default=list, blank=True)
     source_key = models.CharField(max_length=150, unique=True, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='items')
     name = models.CharField(max_length=150)
@@ -59,6 +60,7 @@ class Order(models.Model):
 class OrderLine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     item_name = models.CharField(max_length=150)
+    option_name = models.CharField(max_length=100, blank=True)
     addon_name = models.CharField(max_length=150, blank=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField()

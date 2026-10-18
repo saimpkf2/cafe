@@ -9,6 +9,32 @@ from .models import MenuItem, Category, StoreSettings, Order, OrderEvent
 
 
 class OrderingTests(TestCase):
+    def test_options_are_validated_and_saved_as_order_snapshots(self):
+        item = MenuItem.objects.get(name='Espresso')
+        item.options = ['Hot', 'Cold']
+        item.save()
+        payload = self.payload()
+        self.assertEqual(self.post('checkout', payload).status_code, 400)
+        payload['items'][0]['option'] = 'Invalid'
+        self.assertEqual(self.post('checkout', payload).status_code, 400)
+        payload['items'][0]['option'] = 'Cold'
+        response = self.post('checkout', payload)
+        self.assertEqual(response.status_code, 201, response.content)
+        order = Order.objects.get(public_id=response.json()['token'])
+        self.assertEqual(order.items.get().option_name, 'Cold')
+        item.options = ['Hot']
+        item.save()
+        self.assertEqual(order.items.get().option_name, 'Cold')
+        payload['request_key'] = str(uuid.uuid4())
+        self.assertEqual(self.post('checkout', payload).status_code, 400)
+        self.client.force_login(self.admin)
+        data = {'id': item.id, 'category': item.category_id, 'name': item.name, 'description': '', 'price': str(item.price), 'options': ['Hot', 'hot']}
+        self.assertEqual(self.post('menu-item', data).status_code, 400)
+        data['options'] = [' Hot ', 'Cold']
+        self.assertEqual(self.post('menu-item', data).status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.options, ['Hot', 'Cold'])
+
     def test_password_change_validation_and_session_rotation(self):
         payload = {'current_password': 'test-password', 'new_password': 'Updated-password-2026', 'confirm_password': 'Updated-password-2026'}
         self.assertEqual(self.post('change-password', payload).status_code, 401)

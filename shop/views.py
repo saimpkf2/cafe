@@ -80,13 +80,13 @@ def settings_json(s):
 
 
 def menu_json():
-    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk} for i in c.items.filter(deleted=False).order_by('id')]} for c in Category.objects.filter(deleted=False).prefetch_related('items')]
+    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk, 'options': i.options} for i in c.items.filter(deleted=False).order_by('id')]} for c in Category.objects.filter(deleted=False).prefetch_related('items')]
 
 
 def order_json(o, detail=False):
     data = {'id': o.id, 'order_number': f'DC-{o.id:06}', 'name': o.name, 'phone': o.phone, 'total': str(o.total), 'status': o.status, 'payment_status': o.payment_status, 'seen': o.seen_at is not None, 'created_at': o.created_at.isoformat()}
     if detail:
-        data.update(address=o.address, area=o.area, notes=o.notes, subtotal=str(o.subtotal), delivery_fee=str(o.delivery_fee), items=[{'name': x.item_name, 'addon': x.addon_name, 'unit_price': str(x.unit_price), 'quantity': x.quantity} for x in o.items.all()], history=[{'message': e.message, 'actor': e.actor, 'created_at': e.created_at.isoformat()} for e in o.history.order_by('id')])
+        data.update(address=o.address, area=o.area, notes=o.notes, subtotal=str(o.subtotal), delivery_fee=str(o.delivery_fee), items=[{'name': x.item_name, 'addon': x.addon_name, 'option': x.option_name, 'unit_price': str(x.unit_price), 'quantity': x.quantity} for x in o.items.all()], history=[{'message': e.message, 'actor': e.actor, 'created_at': e.created_at.isoformat()} for e in o.history.order_by('id')])
     return data
 
 
@@ -132,6 +132,9 @@ def create_order(request, data):
             item = MenuItem.objects.select_related('category').filter(pk=line.get('item_id'), available=True, deleted=False, category__deleted=False).first()
             if not item:
                 raise Invalid('An item in your cart is unavailable. Please update your cart.')
+            selected_option = line.get('option', '')
+            if not isinstance(selected_option, str) or (item.options and selected_option not in item.options) or (not item.options and selected_option):
+                raise Invalid('Choose a current option for ' + item.name + '. Please update your cart.')
             addon, price = None, item.price
             if line.get('addon_id'):
                 addon = MenuItem.objects.select_related('category').filter(pk=line['addon_id'], available=True, deleted=False, category__deleted=False, category__is_addon=True).first()
@@ -140,7 +143,7 @@ def create_order(request, data):
                 price += addon.price
             if money(line.get('expected_price')) != price:
                 raise Invalid('Menu prices have changed. Review your refreshed cart and submit again.')
-            result.append(OrderLine(item_name=item.name, addon_name=addon.name if addon else '', unit_price=price, quantity=quantity))
+            result.append(OrderLine(item_name=item.name, option_name=selected_option, addon_name=addon.name if addon else '', unit_price=price, quantity=quantity))
             subtotal += price * quantity
         if subtotal < s.minimum_order:
             raise Invalid(f'Minimum order is AED {s.minimum_order}.')
@@ -342,6 +345,13 @@ def handle(request, action):
     if action == 'menu-item':
         i = MenuItem.objects.get(pk=data['id'], deleted=False) if data.get('id') else MenuItem()
         i.category = Category.objects.get(pk=data.get('category'), deleted=False)
+        options = data.get('options', i.options)
+        if not isinstance(options, list) or len(options) > 30 or any(not isinstance(o, str) or not o.strip() or len(o.strip()) > 100 for o in options):
+            raise Invalid('Add up to 30 options, each between 1 and 100 characters.')
+        options = [o.strip() for o in options]
+        if len({o.casefold() for o in options}) != len(options):
+            raise Invalid('Option names must be unique.')
+        i.options = options
         i.name = text(data, 'name', 150)
         i.description = text(data, 'description', 1000, False)
         i.price = money(data.get('price'))

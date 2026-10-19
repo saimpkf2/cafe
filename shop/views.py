@@ -1,3 +1,7 @@
+import base64
+import binascii
+import io
+from PIL import Image, UnidentifiedImageError
 import hashlib
 import json
 import re
@@ -9,9 +13,9 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Prefetch
 from django.db.models.functions import TruncDate
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -37,6 +41,44 @@ def money(value):
         return result
     except (InvalidOperation, ValueError):
         raise Invalid('Enter a valid amount.')
+
+
+def product_image(value):
+    if value == '':
+        return ''
+    if not isinstance(value, str) or len(value) > 410000:
+        raise Invalid('Choose an image up to 300 KB after resizing.')
+    try:
+        header, encoded = value.split(',', 1)
+        if header not in ('data:image/jpeg;base64', 'data:image/png;base64', 'data:image/webp;base64'):
+            raise ValueError()
+        raw = base64.b64decode(encoded, validate=True)
+        if len(raw) > 300000:
+            raise ValueError()
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.format not in ('JPEG', 'PNG', 'WEBP') or max(image.size) > 1200:
+                raise ValueError()
+            image.load()
+            output = io.BytesIO()
+            image.convert('RGB').save(output, format='JPEG', quality=85)
+        return 'data:image/jpeg;base64,' + base64.b64encode(output.getvalue()).decode()
+    except (ValueError, binascii.Error, OSError, UnidentifiedImageError, Image.DecompressionBombError):
+        raise Invalid('Choose a valid JPG, PNG or WebP product image.')
+
+
+def product_options(values):
+    if not isinstance(values, list) or len(values) > 30:
+        raise Invalid('Add up to 30 product options.')
+    result = []
+    for value in values:
+        value = {'name': value} if isinstance(value, str) else value
+        if not isinstance(value, dict) or not isinstance(value.get('name'), str) or not 1 <= len(value['name'].strip()) <= 100:
+            raise Invalid('Option names must be between 1 and 100 characters.')
+        price = value.get('price')
+        result.append({'name': value['name'].strip(), 'price': None if price is None or price == '' else str(money(price).quantize(Decimal('.01')))})
+    if len({o['name'].casefold() for o in result}) != len(result):
+        raise Invalid('Option names must be unique.')
+    return result
 
 
 def text(data, key, limit, required=True):
@@ -80,7 +122,7 @@ def settings_json(s):
 
 
 def menu_json():
-    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk, 'options': i.options} for i in c.items.filter(deleted=False).order_by('id')]} for c in Category.objects.filter(deleted=False).prefetch_related('items')]
+    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk, 'options': product_options(i.options), 'options_required': i.options_required, 'image': f'/api/menu-image/?id={i.id}&v={i.image_key}' if i.image_key else ''} for i in c.menu_items]} for c in Category.objects.filter(deleted=False).prefetch_related(Prefetch('items', queryset=MenuItem.objects.filter(deleted=False).defer('image_data').order_by('id'), to_attr='menu_items'))]
 
 
 def order_json(o, detail=False):
@@ -133,9 +175,11 @@ def create_order(request, data):
             if not item:
                 raise Invalid('An item in your cart is unavailable. Please update your cart.')
             selected_option = line.get('option', '')
-            if not isinstance(selected_option, str) or (item.options and selected_option not in item.options) or (not item.options and selected_option):
+            options = product_options(item.options)
+            choice = next((o for o in options if o['name'] == selected_option), None)
+            if not isinstance(selected_option, str) or (selected_option and choice is None) or (item.options_required and choice is None):
                 raise Invalid('Choose a current option for ' + item.name + '. Please update your cart.')
-            addon, price = None, item.price
+            addon, price = None, money(choice['price']) if choice and choice['price'] is not None else item.price
             if line.get('addon_id'):
                 addon = MenuItem.objects.select_related('category').filter(pk=line['addon_id'], available=True, deleted=False, category__deleted=False, category__is_addon=True).first()
                 if not addon or not item.allows_milk:
@@ -189,17 +233,17 @@ def dispatch(request, action):
 
 
 def handle(request, action):
-    methods = {'session': ['GET'], 'login': ['POST'], 'logout': ['POST'], 'change-password': ['POST'], 'menu': ['GET'], 'checkout': ['POST'], 'receipt': ['GET'], 'overview': ['GET'], 'orders': ['GET'], 'order': ['GET', 'POST'], 'seen': ['POST'], 'menu-delete': ['POST'], 'menu-item': ['POST'], 'category': ['POST'], 'settings': ['GET', 'POST'], 'alerts': ['GET']}
+    methods = {'session': ['GET'], 'login': ['POST'], 'logout': ['POST'], 'change-password': ['POST'], 'menu': ['GET'], 'menu-image': ['GET'], 'checkout': ['POST'], 'receipt': ['GET'], 'overview': ['GET'], 'orders': ['GET'], 'order': ['GET', 'POST'], 'seen': ['POST'], 'menu-delete': ['POST'], 'menu-item': ['POST'], 'category': ['POST'], 'settings': ['GET', 'POST'], 'alerts': ['GET']}
     if action not in methods:
         return JsonResponse({'error': 'Not found.'}, status=404)
     if request.method not in methods[action]:
         return JsonResponse({'error': 'Method not allowed.'}, status=405)
-    public = {'session', 'login', 'menu', 'checkout', 'receipt'}
+    public = {'session', 'login', 'menu', 'menu-image', 'checkout', 'receipt'}
     if action not in public and not (request.user.is_authenticated and request.user.is_active and request.user.is_staff):
         return JsonResponse({'error': 'Please sign in as an administrator.'}, status=401)
     data = {}
     if request.method == 'POST':
-        if len(request.body) > 50000:
+        if len(request.body) > (500000 if action == 'menu-item' else 50000):
             raise Invalid('Request too large.')
         try:
             data = json.loads(request.body or '{}')
@@ -240,6 +284,12 @@ def handle(request, action):
     if action == 'logout':
         logout(request)
         return JsonResponse({'ok': True})
+    if action == 'menu-image':
+        item = MenuItem.objects.get(pk=request.GET.get('id'), deleted=False, category__deleted=False)
+        if not item.image_data:
+            return HttpResponse(status=404)
+        header, encoded = item.image_data.split(',', 1)
+        return HttpResponse(base64.b64decode(encoded), content_type=header[5:].split(';')[0])
     if action == 'menu':
         return JsonResponse({'categories': menu_json(), 'settings': settings_json(config())})
     if action == 'checkout':
@@ -345,13 +395,13 @@ def handle(request, action):
     if action == 'menu-item':
         i = MenuItem.objects.get(pk=data['id'], deleted=False) if data.get('id') else MenuItem()
         i.category = Category.objects.get(pk=data.get('category'), deleted=False)
-        options = data.get('options', i.options)
-        if not isinstance(options, list) or len(options) > 30 or any(not isinstance(o, str) or not o.strip() or len(o.strip()) > 100 for o in options):
-            raise Invalid('Add up to 30 options, each between 1 and 100 characters.')
-        options = [o.strip() for o in options]
-        if len({o.casefold() for o in options}) != len(options):
-            raise Invalid('Option names must be unique.')
-        i.options = options
+        i.options = product_options(data.get('options', i.options))
+        i.options_required = boolean(data, 'options_required', i.options_required)
+        if i.options_required and not i.options:
+            raise Invalid('Add at least one option or uncheck Option Compulsory.')
+        if 'image_data' in data:
+            i.image_data = product_image(data['image_data'])
+            i.image_key = hashlib.sha256(i.image_data.encode()).hexdigest() if i.image_data else ''
         i.name = text(data, 'name', 150)
         i.description = text(data, 'description', 1000, False)
         i.price = money(data.get('price'))

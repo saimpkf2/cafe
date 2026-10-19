@@ -4,3 +4,4 @@ psycopg[binary]>=3.2,<4
 waitress>=3,<4
 python-dotenv>=1,<2
 gunicorn>=23,<24; sys_platform != "win32"
+Pillow>=11,<13

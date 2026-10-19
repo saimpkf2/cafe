@@ -60,3 +60,11 @@ Use HTTPS on both hosts. Do not point frontend fetch directly at a different dom
 References: https://docs.railway.com/guides/django , https://docs.railway.com/deployments/pre-deploy-command , https://docs.railway.com/deployments/healthchecks
 
 Production checks enable HTTPS redirect, secure cookies, frame protection and one-year HSTS. HSTS subdomain coverage and preload remain off until you control and verify every subdomain; Django check --deploy reports W005/W021 for these intentional choices.
+
+## Product images and optional choices update
+
+Deploy the backend with Pillow installed and migration `0005_product_image_options_required` before the matching frontend. Railway's existing pre-deploy command applies the migration. Existing products with options retain required selection; new items default to optional until the administrator checks **Option Compulsory**. Required items must have at least one option.
+
+Product uploads are resized by the frontend and validated/re-encoded by the backend. Photos are stored in PostgreSQL and served by `/api/menu-image/`, so no ephemeral filesystem or additional media volume is required. Menu polling returns a versioned image URL rather than image bytes. Removing a photo restores the category icon.
+
+Product options accept legacy string names and objects containing `name` and optional `price`. Deploy both repositories together to avoid an old backend rejecting the option objects submitted by the editor.

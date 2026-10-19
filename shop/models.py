@@ -16,6 +16,9 @@ class Category(models.Model):
 
 class MenuItem(models.Model):
     options = models.JSONField(default=list, blank=True)
+    options_required = models.BooleanField(default=False)
+    image_data = models.TextField(blank=True, default="")
+    image_key = models.CharField(max_length=64, blank=True, default="")
     source_key = models.CharField(max_length=150, unique=True, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='items')
     name = models.CharField(max_length=150)

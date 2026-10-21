@@ -104,6 +104,50 @@ class OrderingTests(TestCase):
         self.assertEqual(item.image_data, '')
         self.assertEqual(self.client.get(product['image']).status_code, 404)
 
+    def test_multi_category_options_validation_pricing_and_snapshots(self):
+        item = MenuItem.objects.get(name='Espresso')
+        groups = [
+            {'name': 'Coffee Beans', 'required': True, 'options': [{'name': 'Brazil', 'price': None}, {'name': 'El Salvador', 'price': '2.00'}]},
+            {'name': 'Hot or Iced', 'required': True, 'options': [{'name': 'Hot', 'price': None}, {'name': 'Iced', 'price': '1.00'}]},
+            {'name': 'Extras', 'required': False, 'options': [{'name': 'Shot', 'price': '3.00'}]},
+        ]
+        data = {'id': item.id, 'category': item.category_id, 'name': item.name, 'price': str(item.price), 'option_mode': 'multi', 'option_groups': groups}
+        self.client.force_login(self.admin)
+        for invalid in [[], [groups[0], groups[0]], [{**groups[0], 'options': []}], [{**groups[0], 'required': 'yes'}], [{**groups[0], 'options': [{'name': 'Bad', 'price': '-1'}]}]]:
+            self.assertEqual(self.post('menu-item', {**data, 'option_groups': invalid}).status_code, 400)
+        self.assertEqual(self.post('menu-item', data).status_code, 200)
+        self.client.logout()
+        choices = [{'category': 'Coffee Beans', 'option': 'El Salvador'}, {'category': 'Hot or Iced', 'option': 'Iced'}]
+        for invalid in [[], choices[:1], choices + [choices[0]], choices + [{'category': 'Removed', 'option': 'Yes'}], [{'category': 'Coffee Beans', 'option': 'Removed'}, choices[1]], 'bad']:
+            payload = self.payload()
+            payload['items'][0].update(selections=invalid, expected_price='17.75')
+            self.assertEqual(self.post('checkout', payload).status_code, 400)
+        payload = self.payload()
+        payload['items'][0].update(selections=choices, expected_price='14.75')
+        self.assertEqual(self.post('checkout', payload).status_code, 400)
+        payload['items'][0]['expected_price'] = '17.75'
+        response = self.post('checkout', payload)
+        self.assertEqual(response.status_code, 201, response.content)
+        order = Order.objects.get(public_id=response.json()['token'])
+        line = order.items.get()
+        self.assertEqual(line.unit_price, Decimal('17.75'))
+        self.assertEqual(line.option_name, 'Coffee Beans: El Salvador · Hot or Iced: Iced')
+        self.assertEqual(len(line.selected_options), 2)
+        item.refresh_from_db()
+        item.option_groups = []
+        item.save()
+        receipt = self.client.get('/api/receipt/?token=' + str(order.public_id)).json()
+        self.assertEqual(receipt['items'][0]['option'], line.option_name)
+        self.assertEqual(receipt['items'][0]['selections'], line.selected_options)
+        self.assertEqual(self.post('checkout', self.payload()).status_code, 400)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.post('menu-item', {**data, 'option_mode': 'single', 'options': ['Hot'], 'options_required': True}).status_code, 200)
+        payload = self.payload()
+        payload['items'][0].update(option='Hot', selections=choices)
+        self.assertEqual(self.post('checkout', payload).status_code, 400)
+        payload['items'][0]['selections'] = []
+        self.assertEqual(self.post('checkout', payload).status_code, 201)
+
     def test_password_change_validation_and_session_rotation(self):
         payload = {'current_password': 'test-password', 'new_password': 'Updated-password-2026', 'confirm_password': 'Updated-password-2026'}
         self.assertEqual(self.post('change-password', payload).status_code, 401)

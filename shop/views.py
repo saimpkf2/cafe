@@ -81,6 +81,57 @@ def product_options(values):
     return result
 
 
+def product_option_groups(values):
+    if not isinstance(values, list) or not 1 <= len(values) <= 10:
+        raise Invalid('Add between 1 and 10 option categories.')
+    result = []
+    for group in values:
+        if not isinstance(group, dict):
+            raise Invalid('Invalid option category.')
+        name = text(group, 'name', 100)
+        options = product_options(group.get('options'))
+        if not options:
+            raise Invalid('Add at least one option to ' + name + '.')
+        result.append({'name': name, 'required': boolean(group, 'required'), 'options': options})
+    if len({g['name'].casefold() for g in result}) != len(result):
+        raise Invalid('Option category names must be unique.')
+    return result
+
+
+def selected_product_options(item, line):
+    single = line.get('option', '')
+    selections = line.get('selections', [])
+    if not isinstance(single, str) or not isinstance(selections, list):
+        raise Invalid('Invalid product choices.')
+    if item.option_mode != 'multi':
+        choice = next((o for o in product_options(item.options) if o['name'] == single), None)
+        if selections or (single and choice is None) or (item.options_required and choice is None):
+            raise Invalid('Choose a current option for ' + item.name + '. Please update your cart.')
+        return single, [], money(choice['price']) if choice and choice['price'] is not None else item.price
+    if single or len(selections) > 10:
+        raise Invalid('Please update the choices for ' + item.name + '.')
+    groups = product_option_groups(item.option_groups)
+    chosen = {}
+    for selection in selections:
+        if not isinstance(selection, dict) or not isinstance(selection.get('category'), str) or not isinstance(selection.get('option'), str):
+            raise Invalid('Invalid product choice.')
+        category = selection['category']
+        if category in chosen or category not in {g['name'] for g in groups}:
+            raise Invalid('Choose only one option per current category.')
+        chosen[category] = selection['option']
+    price, snapshot = item.price, []
+    for group in groups:
+        name = group['name']
+        choice = next((o for o in group['options'] if o['name'] == chosen.get(name)), None)
+        if (name in chosen or group['required']) and choice is None:
+            raise Invalid('Choose a current option for ' + name + ' in ' + item.name + '.')
+        if choice:
+            extra = money(choice['price']) if choice['price'] is not None else Decimal('0')
+            price += extra
+            snapshot.append({'category': name, 'option': choice['name'], 'price': str(extra)})
+    return ' · '.join(s['category'] + ': ' + s['option'] for s in snapshot), snapshot, money(price)
+
+
 def text(data, key, limit, required=True):
     value = str(data.get(key, '')).strip()
     if (required and not value) or len(value) > limit:
@@ -122,13 +173,13 @@ def settings_json(s):
 
 
 def menu_json():
-    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk, 'options': product_options(i.options), 'options_required': i.options_required, 'image': f'/api/menu-image/?id={i.id}&v={i.image_key}' if i.image_key else ''} for i in c.menu_items]} for c in Category.objects.filter(deleted=False).prefetch_related(Prefetch('items', queryset=MenuItem.objects.filter(deleted=False).defer('image_data').order_by('id'), to_attr='menu_items'))]
+    return [{'id': c.id, 'key': c.key, 'name': c.name, 'icon': c.icon, 'position': c.position, 'is_addon': c.is_addon, 'items': [{'id': i.id, 'category': c.id, 'name': i.name, 'description': i.description, 'price': str(i.price), 'popular': i.popular, 'available': i.available, 'allows_milk': i.allows_milk, 'options': product_options(i.options), 'options_required': i.options_required, 'option_mode': i.option_mode, 'option_groups': i.option_groups, 'image': f'/api/menu-image/?id={i.id}&v={i.image_key}' if i.image_key else ''} for i in c.menu_items]} for c in Category.objects.filter(deleted=False).prefetch_related(Prefetch('items', queryset=MenuItem.objects.filter(deleted=False).defer('image_data').order_by('id'), to_attr='menu_items'))]
 
 
 def order_json(o, detail=False):
     data = {'id': o.id, 'order_number': f'DC-{o.id:06}', 'name': o.name, 'phone': o.phone, 'total': str(o.total), 'status': o.status, 'payment_status': o.payment_status, 'seen': o.seen_at is not None, 'created_at': o.created_at.isoformat()}
     if detail:
-        data.update(address=o.address, area=o.area, notes=o.notes, subtotal=str(o.subtotal), delivery_fee=str(o.delivery_fee), items=[{'name': x.item_name, 'addon': x.addon_name, 'option': x.option_name, 'unit_price': str(x.unit_price), 'quantity': x.quantity} for x in o.items.all()], history=[{'message': e.message, 'actor': e.actor, 'created_at': e.created_at.isoformat()} for e in o.history.order_by('id')])
+        data.update(address=o.address, area=o.area, notes=o.notes, subtotal=str(o.subtotal), delivery_fee=str(o.delivery_fee), items=[{'name': x.item_name, 'addon': x.addon_name, 'option': x.option_name, 'selections': x.selected_options, 'unit_price': str(x.unit_price), 'quantity': x.quantity} for x in o.items.all()], history=[{'message': e.message, 'actor': e.actor, 'created_at': e.created_at.isoformat()} for e in o.history.order_by('id')])
     return data
 
 
@@ -174,12 +225,8 @@ def create_order(request, data):
             item = MenuItem.objects.select_related('category').filter(pk=line.get('item_id'), available=True, deleted=False, category__deleted=False).first()
             if not item:
                 raise Invalid('An item in your cart is unavailable. Please update your cart.')
-            selected_option = line.get('option', '')
-            options = product_options(item.options)
-            choice = next((o for o in options if o['name'] == selected_option), None)
-            if not isinstance(selected_option, str) or (selected_option and choice is None) or (item.options_required and choice is None):
-                raise Invalid('Choose a current option for ' + item.name + '. Please update your cart.')
-            addon, price = None, money(choice['price']) if choice and choice['price'] is not None else item.price
+            selected_option, selected_options, price = selected_product_options(item, line)
+            addon = None
             if line.get('addon_id'):
                 addon = MenuItem.objects.select_related('category').filter(pk=line['addon_id'], available=True, deleted=False, category__deleted=False, category__is_addon=True).first()
                 if not addon or not item.allows_milk:
@@ -187,7 +234,7 @@ def create_order(request, data):
                 price += addon.price
             if money(line.get('expected_price')) != price:
                 raise Invalid('Menu prices have changed. Review your refreshed cart and submit again.')
-            result.append(OrderLine(item_name=item.name, option_name=selected_option, addon_name=addon.name if addon else '', unit_price=price, quantity=quantity))
+            result.append(OrderLine(item_name=item.name, option_name=selected_option, selected_options=selected_options, addon_name=addon.name if addon else '', unit_price=price, quantity=quantity))
             subtotal += price * quantity
         if subtotal < s.minimum_order:
             raise Invalid(f'Minimum order is AED {s.minimum_order}.')
@@ -395,10 +442,16 @@ def handle(request, action):
     if action == 'menu-item':
         i = MenuItem.objects.get(pk=data['id'], deleted=False) if data.get('id') else MenuItem()
         i.category = Category.objects.get(pk=data.get('category'), deleted=False)
-        i.options = product_options(data.get('options', i.options))
-        i.options_required = boolean(data, 'options_required', i.options_required)
-        if i.options_required and not i.options:
-            raise Invalid('Add at least one option or uncheck Option Compulsory.')
+        i.option_mode = data.get('option_mode', i.option_mode)
+        if i.option_mode not in ('single', 'multi'):
+            raise Invalid('Choose Single Category Option or Multi Category Option.')
+        if i.option_mode == 'multi':
+            i.option_groups = product_option_groups(data.get('option_groups', i.option_groups))
+        else:
+            i.options = product_options(data.get('options', i.options))
+            i.options_required = boolean(data, 'options_required', i.options_required)
+            if i.options_required and not i.options:
+                raise Invalid('Add at least one option or uncheck Option Compulsory.')
         if 'image_data' in data:
             i.image_data = product_image(data['image_data'])
             i.image_key = hashlib.sha256(i.image_data.encode()).hexdigest() if i.image_data else ''

@@ -68,3 +68,9 @@ Deploy the backend with Pillow installed and migration `0005_product_image_optio
 Product uploads are resized by the frontend and validated/re-encoded by the backend. Photos are stored in PostgreSQL and served by `/api/menu-image/`, so no ephemeral filesystem or additional media volume is required. Menu polling returns a versioned image URL rather than image bytes. Removing a photo restores the category icon.
 
 Product options accept legacy string names and objects containing `name` and optional `price`. Deploy both repositories together to avoid an old backend rejecting the option objects submitted by the editor.
+
+## Multi-category product options
+
+Deploy backend migration `0006_multi_category_options` with the matching frontend. Existing products default to Single Category Option and keep their current option prices and required setting. Multi Category Option supports up to 10 named categories, each with up to 30 options and its own compulsory setting. Each selected multi-category option adds its extra price to the base product price; single-category prices retain the existing full unit price behavior.
+
+Checkout validates every category and recalculates prices on the server. Order lines preserve category/option names and extra prices as snapshots, including a readable summary for the admin order view and receipts. Saved carts with removed choices or a changed option mode must be updated by the customer. Switching editor modes retains drafts until the editor closes; saving persists the active mode's options and preserves previously saved inactive options.

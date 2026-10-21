@@ -16,6 +16,8 @@ class Category(models.Model):
 
 class MenuItem(models.Model):
     options = models.JSONField(default=list, blank=True)
+    option_mode = models.CharField(max_length=10, default="single")
+    option_groups = models.JSONField(default=list, blank=True)
     options_required = models.BooleanField(default=False)
     image_data = models.TextField(blank=True, default="")
     image_key = models.CharField(max_length=64, blank=True, default="")
@@ -63,7 +65,8 @@ class Order(models.Model):
 class OrderLine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     item_name = models.CharField(max_length=150)
-    option_name = models.CharField(max_length=100, blank=True)
+    option_name = models.TextField(blank=True)
+    selected_options = models.JSONField(default=list, blank=True)
     addon_name = models.CharField(max_length=150, blank=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField()

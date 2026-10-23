@@ -338,7 +338,7 @@ def handle(request, action):
         header, encoded = item.image_data.split(',', 1)
         return HttpResponse(base64.b64decode(encoded), content_type=header[5:].split(';')[0])
     if action == 'menu':
-        return JsonResponse({'categories': menu_json(), 'settings': settings_json(config())})
+        return JsonResponse({'categories': menu_json(), 'settings': settings_json(config()), 'features': ['multi_category_options']})
     if action == 'checkout':
         return create_order(request, data)
     if action == 'receipt':

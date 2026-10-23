@@ -74,3 +74,11 @@ Product options accept legacy string names and objects containing `name` and opt
 Deploy backend migration `0006_multi_category_options` with the matching frontend. Existing products default to Single Category Option and keep their current option prices and required setting. Multi Category Option supports up to 10 named categories, each with up to 30 options and its own compulsory setting. Each selected multi-category option adds its extra price to the base product price; single-category prices retain the existing full unit price behavior.
 
 Checkout validates every category and recalculates prices on the server. Order lines preserve category/option names and extra prices as snapshots, including a readable summary for the admin order view and receipts. Saved carts with removed choices or a changed option mode must be updated by the customer. Switching editor modes retains drafts until the editor closes; saving persists the active mode's options and preserves previously saved inactive options.
+
+## Success toast but old options return
+
+A Git push is not evidence that Railway switched to that commit. Check the backend service Settings > Source repository and branch, then inspect the active deployment commit and logs. The backend's current Git origin is `saimpkf2/cafe`; `saimprojects/cafebackend` is retained as `old-origin`. Confirm the actual Railway source before changing it.
+
+A current `/api/menu/` response includes `option_mode` and `option_groups` on products. If these fields are absent, the running backend predates multi-category options even if migration 0006 has already been applied. Deploy the current backend source, resolve any build/pre-deploy failure, and wait for an active successful deployment. Verify both the backend domain and storefront `/api/menu/` response.
+
+The product editor now checks backend support before submitting multi-category edits and reads the menu back after a save. It shows success only when the saved fields match; otherwise it keeps the draft open. New records retain the returned ID if verification fails, preventing duplicate creation on retry.

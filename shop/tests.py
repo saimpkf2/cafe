@@ -116,6 +116,11 @@ class OrderingTests(TestCase):
         for invalid in [[], [groups[0], groups[0]], [{**groups[0], 'options': []}], [{**groups[0], 'required': 'yes'}], [{**groups[0], 'options': [{'name': 'Bad', 'price': '-1'}]}]]:
             self.assertEqual(self.post('menu-item', {**data, 'option_groups': invalid}).status_code, 400)
         self.assertEqual(self.post('menu-item', data).status_code, 200)
+        refreshed = self.client.get('/api/menu/').json()
+        self.assertIn('multi_category_options', refreshed['features'])
+        saved = next(i for g in refreshed['categories'] for i in g['items'] if i['id'] == item.id)
+        self.assertEqual(saved['option_mode'], 'multi')
+        self.assertEqual(saved['option_groups'], groups)
         self.client.logout()
         choices = [{'category': 'Coffee Beans', 'option': 'El Salvador'}, {'category': 'Hot or Iced', 'option': 'Iced'}]
         for invalid in [[], choices[:1], choices + [choices[0]], choices + [{'category': 'Removed', 'option': 'Yes'}], [{'category': 'Coffee Beans', 'option': 'Removed'}, choices[1]], 'bad']:
